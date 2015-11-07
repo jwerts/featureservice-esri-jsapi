@@ -21,7 +21,7 @@ define(
         lang.mixin(this, options);
         this.url = url;
       },
-      applyEdits: function(/* Object[] */ edits, /* bool? */ rollbackOnFailure) {
+      applyEdits: function(/* Object[] */ edits, /* string? */ gdbVersion) {
         /**
         edit = {
           id: int (service layer id)
@@ -42,7 +42,7 @@ define(
         On error, response will either be the error from the service OR
         the first error encountered in the results.
         **/
-        if (typeof rollbackOnFailure === 'undefined') { rollbackOnFailure = true; }
+        gdbVersion = typeof gdbVersion === 'undefined' ? null : gdbVersion;
 
         // build inputs to REST API - transform graphics to json
         var editsJson = [];
@@ -50,20 +50,24 @@ define(
           var editJson = {
             id: edit.id
           };
-          editJson['adds'] = array.map(edit.adds, function(graphic) {
+          editJson.adds = array.map(edit.adds, function(graphic) {
             return graphic.toJson();
           });
-          editJson['updates'] = array.map(edit.updates, function(graphic) {
+          editJson.updates = array.map(edit.updates, function(graphic) {
             return graphic.toJson();
           });
           // these should just be objectids, not graphics
-          editJson['deletes'] = edit.deletes || [];
+          editJson.deletes = edit.deletes || [];
           editsJson.push(editJson);
         });
 
         var params = {
           edits: JSON.stringify(editsJson),
-          rollbackOnFailure: rollbackOnFailure
+
+          // if one edit fails, they should all fail.
+          // NOTE: may not be supported by all data sources, see ESRI docs
+          rollbackOnFailure: true,
+          gdbVersion: gdbVersion
         };
 
         var options = {

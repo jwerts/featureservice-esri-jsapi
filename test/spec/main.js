@@ -23,6 +23,9 @@ var dojoConfig = {
       name: 'dojo',
       location: 'http://js.arcgis.com/3.10/js/dojo/dojo'
     }, {
+      name: 'dojox',
+      location: 'http://js.arcgis.com/3.10/js/dojo/dojox'
+    }, {
       name: 'application',
       location: package_path + '/js'
     }, {
