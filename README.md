@@ -1,7 +1,8 @@
 # featureservice-esri-jsapi
-Wrapper around esri REST API Feature Service allowing edits to multiple layers in a Feature Service in a single request with rollback on all if any edits fail (if supported by data source - see ESRI documentation).
 
-bower install featureservice-esri-jsapi
+**bower install featureservice-esri-jsapi**
+
+Wrapper around esri REST API Feature Service allowing edits to multiple layers in a Feature Service in a single request with rollback on all if any edits fail (if supported by data source - see ESRI documentation).
 
 License: MIT
 
