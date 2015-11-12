@@ -64,15 +64,7 @@ module.exports = function(config) {
 
     // start these browsers
     // available browser launchers: https://npmjs.org/browse/keyword/karma-launcher
-    browsers: ['PhantomJS', 'IE'],
-
-    customLaunchers: {
-      IE8: {
-        base: 'IE',
-        'x-ua-compatible': 'IE=EmulateIE8'
-      }
-    },
-
+    browsers: ['PhantomJS'],
 
     // Continuous Integration mode
     // if true, Karma captures browsers, runs the tests and exits
@@ -89,8 +81,7 @@ module.exports = function(config) {
       'karma-sinon',
       'karma-sinon-chai',
       'karma-mocha-reporter',
-      'karma-phantomjs-launcher',
-      'karma-ie-launcher'
+      'karma-phantomjs-launcher'
       //'karma-chrome-launcher'
     ]
   });

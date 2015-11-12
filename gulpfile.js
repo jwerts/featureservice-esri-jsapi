@@ -2,12 +2,8 @@
 
 var gulp =        require('gulp');
 var uglify =      require('gulp-uglify');
-//var streamify =   require('gulp-streamify');
 var rename =      require('gulp-rename');
-// var concat =      require('gulp-concat');
-// var replace =     require('gulp-replace');
 var clean =       require('gulp-clean');
-//var path =        require('path');
 
 var JS_PATH = './src/js/FeatureService.js';
 
@@ -16,7 +12,7 @@ gulp.task('clean', function() {
     .pipe(clean({force: true}));
 });
 
-// browserify bundle task
+// copy / minify to dist folder.
 gulp.task('dist', ['clean'], function() {
   return gulp.src(JS_PATH)
     .pipe(gulp.dest('./dist'))

@@ -78,10 +78,11 @@ require(
           expect(errBack.calledOnce).to.be.false;
         });
 
-        it('should return arrays of added, updated, deleted objectids keyed by layer id', function(done) {
+        it('should return array of objects with layer id and added, updated, deleted objectids', function(done) {
           var service = new FeatureService(URL);
-          var edits = {
-            2: {
+          var edits = [
+            {
+              id: 0,
               adds: [
                 new Graphic(new Point(0,0, WGS_84), null, {})
               ],
@@ -89,50 +90,59 @@ require(
                 new Graphic(new Point(0,0, WGS_84), null, {})
               ],
               deletes: [
-                new Graphic(new Point(0,0, WGS_84), null, {}),
-                new Graphic(new Point(0,0, WGS_84), null, {})
+                1, 2
               ]
             },
-            5: {
+            {
+              id: 1,
               adds: [
                 new Graphic(new Point(0,0, WGS_84), null, {}),
                 new Graphic(new Point(0,0, WGS_84), null, {}),
                 new Graphic(new Point(0,0, WGS_84), null, {})
               ]
             }
-          };
+          ];
 
           service.applyEdits(edits).then(function(result) {
             console.log(result);
 
-            // contains correct objectids keyed by layer
-            expect(result[2].adds).to.deep.equal([20]);
-            expect(result[2].updates).to.deep.equal([30]);
-            expect(result[2].deletes).to.deep.equal([31,32]);
+            // 2 layers
+            expect(result.length).to.equal(2);
 
-            expect(result[5].adds).to.deep.equal([55,56,57]);
+            // contains correct objectids and layer id
+            expect(result[0].id).to.equal(2);
+            expect(result[0].adds).to.deep.equal([20]);
+            expect(result[0].updates).to.deep.equal([30]);
+            expect(result[0].deletes).to.deep.equal([31,32]);
+
+            expect(result[1].id).to.equal(5);
+            expect(result[1].adds).to.deep.equal([55,56,57]);
+            expect(result[1].updates).to.deep.equal([]);
+            expect(result[1].deletes).to.deep.equal([]);
 
             done();
           });
           requests[0].respond(200, JSON_HEADER, multiAddsSuccessJSON);
         });
 
-        it('should trigger fault handler with array of errors keyed by layer id', function(done) {
+        it('should trigger fault handler with array 200 code and errors array with error object and layer id when one or more edits fail', function(done) {
           var service = new FeatureService(URL);
-          var edits = {
-            2: {
+          var edits = [
+            {
+              id: 2,
               adds: [
                 new Graphic(new Point(0,0, WGS_84), null, {})
               ]
             },
-            5: {
+            {
+              id: 5,
               adds: [
                 new Graphic(new Point(0,0, WGS_84), null, {}),
                 new Graphic(new Point(0,0, WGS_84), null, {}),
                 new Graphic(new Point(0,0, WGS_84), null, {})
               ]
             }
-          };
+          ];
 
           service.applyEdits(edits).then(function(result) {
             throw new Error("Should not have called success");
@@ -140,14 +150,16 @@ require(
             console.log(error);
             expect(error.status).to.equal(200);
             expect(error.message).to.equal("At least one layer's edits failed.");
-            expect(error.errors[2]).to.deep.equal([{
+            expect(error.errors[0]).to.deep.equal({
+              id: 2,
               code: -2147217395,
               description: "Made up error."
-            }]);
-            expect(error.errors[5]).to.deep.equal([{
-              "code": -2147217395,
-              "description": "Setting of Value for depth failed."
-            }]);
+            });
+            expect(error.errors[1]).to.deep.equal({
+              id: 5,
+              code: -2147217395,
+              description: "Setting of Value for depth failed."
+            });
             done();
           });
           requests[0].respond(200, JSON_HEADER, multiAddsFailureJSON);

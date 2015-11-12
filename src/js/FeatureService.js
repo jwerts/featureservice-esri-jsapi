@@ -1,56 +1,13 @@
 /*
  * FeatureService.js
  *
+ * Wrapper around ESRI REST API allowing edits to multiple layers in Feature service
+ * in single HTTP request.  Rolls back on failure for all layers if any single edit fails
+ * (assumes data source supports rollback per esri docs).
+ *
  * -------
- * Copyright 2015 Josh Werts All rights reserved.
+ * MIT License, Copyright 2015 Josh Werts, http://joshwerts.com
  */
-
- // ES5 15.2.3.14
- // http://es5.github.com/#x15.2.3.14
-if (!Object.keys) {
-     // http://whattheheadsaid.com/2010/10/a-safer-object-keys-compatibility-implementation
-  var hasDontEnumBug = true,
-      dontEnums = [
-        "toString",
-        "toLocaleString",
-        "valueOf",
-        "hasOwnProperty",
-        "isPrototypeOf",
-        "propertyIsEnumerable",
-        "constructor"
-      ],
-      dontEnumsLength = dontEnums.length;
-
-  for (var key in {"toString": null}) {
-    hasDontEnumBug = false;
-  }
-
-  Object.keys = function keys(object) {
-    if (
-    (typeof object != "object" && typeof object != "function") ||
-            object === null
-    ) {
-      throw new TypeError("Object.keys called on a non-object");
-    }
-
-    var keys = [];
-    for (var name in object) {
-      if (owns(object, name)) {
-        keys.push(name);
-      }
-    }
-
-    if (hasDontEnumBug) {
-      for (var i = 0, ii = dontEnumsLength; i < ii; i++) {
-        var dontEnum = dontEnums[i];
-        if (owns(object, dontEnum)) {
-          keys.push(dontEnum);
-        }
-      }
-    }
-    return keys;
-  };
-}
 
 define(
   [
@@ -68,40 +25,33 @@ define(
         lang.mixin(this, options);
         this.url = url;
       },
-      applyEdits: function(/* Object */ edits, /* string? */ gdbVersion) {
+      applyEdits: function(/* Object[] */ edits, /* string? */ gdbVersion) {
         /**
-        object keyed by layer id containing objects with arrays of adds, updates, and deletes
-        edits = {
-          id int (service layer id): {
-            adds: Graphic[],
-            updates: Graphic[],
-            deletes: int[] ObjectIds of features to delete
-          }
+        edits = [edit] where edit is defined as:
+        edit = {
+          id: int (service layer id)
+          adds: Graphic[],
+          updates: Graphic[],
+          deletes: int[] ObjectIds of features to delete
         }
-
         returns dojo.Deferred.
-
-        On success, response contains:
-        {
+        On success, response contains [success] where success is defined as:
+        success = {
           adds: [oid, oid, oid, ...],
           deletes: [oid, oid, oid, ...],
           updates: [oid, oid, oid, ...]
         }
-
-        On error, response will either be the error from the service (500) OR
-        error with 200 code containing an errors object keyed by layer id.
+        On error, response will either be the error from the service OR
+        an error object with code = 200 and an "errors" property containing
+        an array of error objects.
         **/
         gdbVersion = typeof gdbVersion === 'undefined' ? null : gdbVersion;
 
         // build inputs to REST API - transform graphics to json
         var editsJson = [];
-        var layerIds = Object.keys(edits);
-        var layerIdCount = layerIds.length;
-        for (var i=0; i<layerIdCount; i++) {
-          var layerIdKey = layerIds[i];
-          var edit = edits[layerIdKey];
+        array.forEach(edits, function(edit) {
           var editJson = {
-            id: parseInt(layerIdKey, 10)
+            id: edit.id
           };
           editJson.adds = array.map(edit.adds, function(graphic) {
             return graphic.toJson();
@@ -112,7 +62,7 @@ define(
           // these should just be objectids, not graphics
           editJson.deletes = edit.deletes || [];
           editsJson.push(editJson);
-        }
+        });
 
         var params = {
           edits: JSON.stringify(editsJson),
@@ -151,51 +101,44 @@ define(
             }
           }
           **/
-          var packagedResponse = {};
-          var errors = null;
-
-          function addError(errors, layerId, error) {
-            if (errors === null) {
-              errors = {};
-            }
-            if (!errors.hasOwnProperty(layerId)) {
-              errors[layerId] = [];
-            }
-            errors[layerId].push(error);
-            return errors;
-          }
+          var packagedResponse = [];
+          var errors = [];
 
           array.forEach(response, function(layer) {
             var layerResult = {
+              id: layer.id,
               adds: [],
               updates: [],
               deletes: []
             };
             array.forEach(layer.addResults, function(result) {
-              if (!result.success) {
-                errors = addError(errors, layer.id, result.error);
-              } else {
+              if (result.success) {
                 layerResult.adds.push(result.objectId);
+              } else {
+                result.error.id = layer.id;
+                errors.push(result.error);
               }
             });
             array.forEach(layer.updateResults, function(result) {
-              if (!result.success) {
-                errors = addError(errors, layer.id, result.error);
-              } else {
+              if (result.success) {
                 layerResult.updates.push(result.objectId);
+              } else {
+                result.error.id = layer.id;
+                errors.push(result.error);
               }
             });
             array.forEach(layer.deleteResults, function(result) {
-              if (!result.success) {
-                errors = addError(errors, layer.id, result.error);
-              } else {
+              if (result.success) {
                 layerResult.deletes.push(result.objectId);
+              } else {
+                result.error.id = layer.id;
+                errors.push(result.error);
               }
             });
-            packagedResponse[layer.id] = layerResult;
+            packagedResponse.push(layerResult);
           });
 
-          if (errors !== null) {
+          if (errors.length) {
             deferred.reject({
               message: "At least one layer's edits failed.",
               status: 200,
@@ -213,7 +156,6 @@ define(
         }
 
         request.then(onSuccess, onError);
-
         return deferred;
       }
     });

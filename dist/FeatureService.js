@@ -1,8 +1,12 @@
 /*
  * FeatureService.js
  *
+ * Wrapper around ESRI REST API allowing edits to multiple layers in Feature service
+ * in single HTTP request.  Rolls back on failure for all layers if any single edit fails
+ * (assumes data source supports rollback per esri docs).
+ *
  * -------
- * Copyright 2015 Josh Werts All rights reserved.
+ * MIT License, Copyright 2015 Josh Werts, http://joshwerts.com
  */
 
 define(
@@ -23,24 +27,23 @@ define(
       },
       applyEdits: function(/* Object[] */ edits, /* string? */ gdbVersion) {
         /**
+        edits = [edit] where edit is defined as:
         edit = {
           id: int (service layer id)
           adds: Graphic[],
           updates: Graphic[],
           deletes: int[] ObjectIds of features to delete
         }
-
         returns dojo.Deferred.
-
-        On success, response contains:
-        {
+        On success, response contains [success] where success is defined as:
+        success = {
           adds: [oid, oid, oid, ...],
           deletes: [oid, oid, oid, ...],
           updates: [oid, oid, oid, ...]
         }
-
         On error, response will either be the error from the service OR
-        the first error encountered in the results.
+        an error object with code = 200 and an "errors" property containing
+        an array of error objects.
         **/
         gdbVersion = typeof gdbVersion === 'undefined' ? null : gdbVersion;
 
@@ -98,51 +101,44 @@ define(
             }
           }
           **/
-          var packagedResponse = {};
-          var errors = null;
-
-          function addError(errors, layerId, error) {
-            if (errors === null) {
-              errors = {};
-            }
-            if (!errors.hasOwnProperty(layerId)) {
-              errors[layerId] = [];
-            }
-            errors[layerId].push(error);
-            return errors;
-          }
+          var packagedResponse = [];
+          var errors = [];
 
           array.forEach(response, function(layer) {
             var layerResult = {
+              id: layer.id,
               adds: [],
               updates: [],
               deletes: []
             };
             array.forEach(layer.addResults, function(result) {
-              if (!result.success) {
-                errors = addError(errors, layer.id, result.error);
-              } else {
+              if (result.success) {
                 layerResult.adds.push(result.objectId);
+              } else {
+                result.error.id = layer.id;
+                errors.push(result.error);
               }
             });
             array.forEach(layer.updateResults, function(result) {
-              if (!result.success) {
-                errors = addError(errors, layer.id, result.error);
-              } else {
+              if (result.success) {
                 layerResult.updates.push(result.objectId);
+              } else {
+                result.error.id = layer.id;
+                errors.push(result.error);
               }
             });
             array.forEach(layer.deleteResults, function(result) {
-              if (!result.success) {
-                errors = addError(errors, layer.id, result.error);
-              } else {
+              if (result.success) {
                 layerResult.deletes.push(result.objectId);
+              } else {
+                result.error.id = layer.id;
+                errors.push(result.error);
               }
             });
-            packagedResponse[layer.id] = layerResult;
+            packagedResponse.push(layerResult);
           });
 
-          if (errors !== null) {
+          if (errors.length) {
             deferred.reject({
               message: "At least one layer's edits failed.",
               status: 200,
@@ -160,7 +156,6 @@ define(
         }
 
         request.then(onSuccess, onError);
-
         return deferred;
       }
     });
