@@ -55,6 +55,7 @@ define(
 
       // layer 5 add objectids
       var layer5Adds = result[5].adds;
+      
     }, function(error) {
       /* error callback can be called for 2 reasons
         1. Service faults (server 500 error, etc)
