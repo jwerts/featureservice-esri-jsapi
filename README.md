@@ -7,9 +7,21 @@ Wrapper around esri REST API Feature Service allowing edits to multiple layers i
 License: MIT
 
 ```js
+var package_path = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+var dojoConfig = {
+  async: true,
+  packages: [
+    {
+      name: 'feature-service',
+      location: package_path + '/js/lib/bower_components/featureservice-esri-jsapi/dist',
+      main: 'FeatureService.min'
+    }
+  ]
+};
+
 define(
   [
-    'application/FeatureService'
+    'feature-service'
   ], function(FeatureService) {
     'use strict';
 
