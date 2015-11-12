@@ -5,6 +5,53 @@
  * Copyright 2015 Josh Werts All rights reserved.
  */
 
+ // ES5 15.2.3.14
+ // http://es5.github.com/#x15.2.3.14
+if (!Object.keys) {
+     // http://whattheheadsaid.com/2010/10/a-safer-object-keys-compatibility-implementation
+  var hasDontEnumBug = true,
+      dontEnums = [
+        "toString",
+        "toLocaleString",
+        "valueOf",
+        "hasOwnProperty",
+        "isPrototypeOf",
+        "propertyIsEnumerable",
+        "constructor"
+      ],
+      dontEnumsLength = dontEnums.length;
+
+  for (var key in {"toString": null}) {
+    hasDontEnumBug = false;
+  }
+
+  Object.keys = function keys(object) {
+    if (
+    (typeof object != "object" && typeof object != "function") ||
+            object === null
+    ) {
+      throw new TypeError("Object.keys called on a non-object");
+    }
+
+    var keys = [];
+    for (var name in object) {
+      if (owns(object, name)) {
+        keys.push(name);
+      }
+    }
+
+    if (hasDontEnumBug) {
+      for (var i = 0, ii = dontEnumsLength; i < ii; i++) {
+        var dontEnum = dontEnums[i];
+        if (owns(object, dontEnum)) {
+          keys.push(dontEnum);
+        }
+      }
+    }
+    return keys;
+  };
+}
+
 define(
   [
     'dojo/_base/declare',
@@ -21,13 +68,15 @@ define(
         lang.mixin(this, options);
         this.url = url;
       },
-      applyEdits: function(/* Object[] */ edits, /* string? */ gdbVersion) {
+      applyEdits: function(/* Object */ edits, /* string? */ gdbVersion) {
         /**
-        edit = {
-          id: int (service layer id)
-          adds: Graphic[],
-          updates: Graphic[],
-          deletes: int[] ObjectIds of features to delete
+        object keyed by layer id containing objects with arrays of adds, updates, and deletes
+        edits = {
+          id int (service layer id): {
+            adds: Graphic[],
+            updates: Graphic[],
+            deletes: int[] ObjectIds of features to delete
+          }
         }
 
         returns dojo.Deferred.
@@ -39,16 +88,20 @@ define(
           updates: [oid, oid, oid, ...]
         }
 
-        On error, response will either be the error from the service OR
-        the first error encountered in the results.
+        On error, response will either be the error from the service (500) OR
+        error with 200 code containing an errors object keyed by layer id.
         **/
         gdbVersion = typeof gdbVersion === 'undefined' ? null : gdbVersion;
 
         // build inputs to REST API - transform graphics to json
         var editsJson = [];
-        array.forEach(edits, function(edit) {
+        var layerIds = Object.keys(edits);
+        var layerIdCount = layerIds.length;
+        for (var i=0; i<layerIdCount; i++) {
+          var layerIdKey = layerIds[i];
+          var edit = edits[layerIdKey];
           var editJson = {
-            id: edit.id
+            id: parseInt(layerIdKey, 10)
           };
           editJson.adds = array.map(edit.adds, function(graphic) {
             return graphic.toJson();
@@ -59,7 +112,7 @@ define(
           // these should just be objectids, not graphics
           editJson.deletes = edit.deletes || [];
           editsJson.push(editJson);
-        });
+        }
 
         var params = {
           edits: JSON.stringify(editsJson),

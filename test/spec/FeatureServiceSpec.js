@@ -80,9 +80,8 @@ require(
 
         it('should return arrays of added, updated, deleted objectids keyed by layer id', function(done) {
           var service = new FeatureService(URL);
-          var edits = [
-            {
-              id: 0,
+          var edits = {
+            2: {
               adds: [
                 new Graphic(new Point(0,0, WGS_84), null, {})
               ],
@@ -94,15 +93,14 @@ require(
                 new Graphic(new Point(0,0, WGS_84), null, {})
               ]
             },
-            {
-              id: 1,
+            5: {
               adds: [
                 new Graphic(new Point(0,0, WGS_84), null, {}),
                 new Graphic(new Point(0,0, WGS_84), null, {}),
                 new Graphic(new Point(0,0, WGS_84), null, {})
               ]
             }
-          ];
+          };
 
           service.applyEdits(edits).then(function(result) {
             console.log(result);
@@ -121,22 +119,20 @@ require(
 
         it('should trigger fault handler with array of errors keyed by layer id', function(done) {
           var service = new FeatureService(URL);
-          var edits = [
-            {
-              id: 0,
+          var edits = {
+            2: {
               adds: [
                 new Graphic(new Point(0,0, WGS_84), null, {})
               ]
             },
-            {
-              id: 1,
+            5: {
               adds: [
                 new Graphic(new Point(0,0, WGS_84), null, {}),
                 new Graphic(new Point(0,0, WGS_84), null, {}),
                 new Graphic(new Point(0,0, WGS_84), null, {})
               ]
             }
-          ];
+          };
 
           service.applyEdits(edits).then(function(result) {
             throw new Error("Should not have called success");
