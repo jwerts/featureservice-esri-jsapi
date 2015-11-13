@@ -19,7 +19,7 @@ var dojoConfig = {
   ]
 };
 
-define(
+require(
   [
     'feature-service'
   ], function(FeatureService) {
@@ -28,23 +28,23 @@ define(
     var service = new FeatureService("http://[server]/arcgis/rest/MyService");
     var edits = [
       {
-        id: 2,
+        id: 2,  // id of layer in service
         adds: [
-          new Graphic(new Point(0,0, WGS_84), null, {})
+          addGraphic
         ],
         updates: [
-          new Graphic(new Point(0,0, WGS_84), null, {})
+          updateGraphic
         ],
         deletes: [
           1, 2  // just objectids of features to delete.
         ]
       },
       {
-        id: 5,
+        id: 5,  // id of layer in service
         adds: [
-          new Graphic(new Point(0,0, WGS_84), null, {}),
-          new Graphic(new Point(0,0, WGS_84), null, {}),
-          new Graphic(new Point(0,0, WGS_84), null, {})
+          someGraphic,
+          anotherGraphic,
+          yetAnotherGraphic
         ]
       }
     ];
@@ -54,7 +54,7 @@ define(
       // result is an array
       // each array value contains an object with layer id and objectids of successful edits:
       /*
-      {
+      [
         {
           id: int id of feature service layer
           adds: [oid, oid, oid, ...],
@@ -62,15 +62,15 @@ define(
           deletes: [oid, oid, oid, ...]
         },
         ...
-      }
+      ]
       */
-      // layer 2 add objectids
+      // layer 2 results
       console.log(result[0].id);
       console.log(result[0].adds);
       console.log(result[0].updates);
       console.log(result[0].deletes);
 
-      // layer 5 add objectids
+      // layer 5 results
       console.log(result[1].id);
       console.log(result[1].adds);
       console.log(result[1].updates);
@@ -78,13 +78,13 @@ define(
 
     }, function(error) {
       /* error callback can be called for 2 reasons
-        1. Service faults (server 500 error, etc)
+        1. Regular service faults (server 500 error, etc)
         2. One or more of the edits failed (but server still responded with 200)
 
         In case 1, the error is a standard esri error object with code and message.
         In case 2, the error is an object with code (200) and message plus an additional
-        errors property which contains an array of errors with error object.
-        Error object contains code, description, and id (layer id)
+        errors property which contains an array of error objects.
+        Error object contains code, description, and id (layer id).
       */
       // case 2
       if (error.code === 200) {
@@ -97,3 +97,4 @@ define(
       }
     });
 });
+```
